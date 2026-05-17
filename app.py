@@ -33,10 +33,13 @@ def is_vague(query):
         "test",
         "hiring",
         "job",
-        "need assessment"
+        "need assessment",
+        "analyst",
+        "developer",
+        "engineer"
     ]
 
-    if len(query.split()) < 3:
+    if len(query.split()) < 2:
         return True
 
     if query in vague_terms:
@@ -66,7 +69,10 @@ def is_off_topic(query):
         "compare",
         "difference",
         "opq",
-        "gsa"
+        "gsa",
+        "sales",
+        "sql",
+        "data"
     ]
 
     query = query.lower()
@@ -75,12 +81,27 @@ def is_off_topic(query):
 
 
 # -----------------------------
+# Root Endpoint
+# -----------------------------
+
+@app.get("/")
+def home():
+
+    return {
+        "message": "SHL Assessment Recommendation API is running."
+    }
+
+
+# -----------------------------
 # Health Endpoint
 # -----------------------------
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+
+    return {
+        "status": "ok"
+    }
 
 
 # -----------------------------
@@ -92,31 +113,44 @@ def chat(request: ChatRequest):
 
     messages = request.messages
 
-    # Combine all user messages
+    # Combine user messages
     conversation_text = " ".join(
         [msg.content for msg in messages if msg.role == "user"]
     )
 
     # -----------------------------
-    # Off-topic detection
+    # Off-topic Detection
     # -----------------------------
 
     if is_off_topic(conversation_text):
 
         return {
-            "reply": "I can only help with SHL assessment recommendations.",
+            "reply": (
+                "Please enter a hiring role or skill.\n\n"
+                "Examples:\n"
+                "- Java Developer\n"
+                "- Data Analyst\n"
+                "- Python Engineer\n"
+                "- Sales Manager"
+            ),
             "recommendations": [],
             "end_of_conversation": False
         }
 
     # -----------------------------
-    # Vague query detection
+    # Vague Query Detection
     # -----------------------------
 
     if is_vague(conversation_text):
 
         return {
-            "reply": "Sure. What role are you hiring for?",
+            "reply": (
+                "Please provide more details about the hiring role.\n\n"
+                "Examples:\n"
+                "- Senior Java Backend Developer\n"
+                "- Data Analyst with SQL skills\n"
+                "- Python Engineer for Backend APIs"
+            ),
             "recommendations": [],
             "end_of_conversation": False
         }
@@ -125,9 +159,16 @@ def chat(request: ChatRequest):
     # Comparison Mode
     # -----------------------------
 
-    if "difference" in conversation_text.lower() or "compare" in conversation_text.lower():
+    if (
+        "difference" in conversation_text.lower()
+        or
+        "compare" in conversation_text.lower()
+    ):
 
-        results = retrieve_assessments(conversation_text, k=2)
+        results = retrieve_assessments(
+            conversation_text,
+            k=2
+        )
 
         if len(results) >= 2:
 
@@ -140,17 +181,20 @@ def chat(request: ChatRequest):
 
 {second['name']} focuses more on {', '.join(second['keys'])}.
 
-Both assessments are useful for different hiring needs depending on whether you want technical, behavioral, competency, or personality evaluation.
+Both assessments are useful depending on whether you want technical, behavioral, competency, or personality evaluation.
 """,
                 "recommendations": [],
                 "end_of_conversation": False
             }
 
     # -----------------------------
-    # Retrieve assessments
+    # Retrieve Assessments
     # -----------------------------
 
-    results = retrieve_assessments(conversation_text, k=5)
+    results = retrieve_assessments(
+        conversation_text,
+        k=5
+    )
 
     recommendations = []
 

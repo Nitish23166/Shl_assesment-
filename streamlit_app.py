@@ -1,9 +1,9 @@
 import streamlit as st
 import requests
 
-# --------------------------------
-# Page Config
-# --------------------------------
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
 
 st.set_page_config(
     page_title="SHL Assessment Recommender",
@@ -11,105 +11,138 @@ st.set_page_config(
     layout="centered"
 )
 
+# -----------------------------
+# TITLE
+# -----------------------------
+
 st.title("🤖 SHL Assessment Recommender")
 
 st.markdown(
-    "Chat with the AI agent to find the best SHL assessments for hiring."
+    "Get the best SHL assessments based on hiring requirements."
 )
 
-# --------------------------------
-# Session State for Chat History
-# --------------------------------
+# -----------------------------
+# SESSION STATE
+# -----------------------------
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --------------------------------
-# Display Previous Messages
-# --------------------------------
+# -----------------------------
+# DISPLAY CHAT HISTORY
+# -----------------------------
 
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
-
         st.markdown(message["content"])
 
-        # Show recommendations if present
-        if "recommendations" in message:
+# -----------------------------
+# USER INPUT
+# -----------------------------
 
-            for rec in message["recommendations"]:
+prompt = st.chat_input("Enter hiring requirement...")
 
-                st.markdown(f"### {rec['name']}")
-                st.markdown(f"**Type:** {rec['test_type']}")
-                st.markdown(f"[Open Assessment]({rec['url']})")
+if prompt:
 
-# --------------------------------
-# User Input
-# --------------------------------
-
-user_input = st.chat_input("Enter hiring requirement...")
-
-if user_input:
-
-    # Add user message to chat
+    # Save user message
     st.session_state.messages.append({
         "role": "user",
-        "content": user_input
+        "content": prompt
     })
 
-    # Show user message
+    # Display user message
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(prompt)
 
-    # --------------------------------
-    # Prepare API Payload
-    # --------------------------------
+    # -----------------------------
+    # API CALL
+    # -----------------------------
 
+    api_url = "http://127.0.0.1:8000/chat"
     payload = {
         "messages": [
             {
-                "role": msg["role"],
-                "content": msg["content"]
+                "role": "user",
+                "content": prompt
             }
-            for msg in st.session_state.messages
         ]
     }
 
-    # --------------------------------
-    # Call FastAPI Backend
-    # --------------------------------
+    assistant_reply = ""
 
-    response = requests.post(
-        "http://127.0.0.1:8000/chat",
-        json=payload
-    )
+    try:
 
-    data = response.json()
+        response = requests.post(
+            api_url,
+            json=payload,
+            timeout=60
+        )
 
-    assistant_reply = data["reply"]
+        # Check status
+        if response.status_code != 200:
 
-    recommendations = data.get("recommendations", [])
+            assistant_reply = (
+                "Backend server error. "
+                "Please wait a few seconds and try again."
+            )
 
-    # --------------------------------
-    # Display Assistant Response
-    # --------------------------------
+        else:
 
-    with st.chat_message("assistant"):
+            try:
 
-        st.markdown(assistant_reply)
+                data = response.json()
 
-        for rec in recommendations:
+                assistant_reply = data.get(
+                    "reply",
+                    "No response received."
+                )
 
-            st.markdown(f"### {rec['name']}")
-            st.markdown(f"**Type:** {rec['test_type']}")
-            st.markdown(f"[Open Assessment]({rec['url']})")
+                recommendations = data.get(
+                    "recommendations",
+                    []
+                )
 
-    # --------------------------------
-    # Save Assistant Message
-    # --------------------------------
+                if recommendations:
+
+                    assistant_reply += "\n\n### Recommended Assessments:\n"
+
+                    for item in recommendations:
+
+                        assistant_reply += f"""
+- **{item['name']}**
+  - Type: {item['test_type']}
+  - [Open Assessment]({item['url']})
+"""
+
+            except Exception:
+
+                assistant_reply = (
+                    "Invalid response received from backend."
+                )
+
+    except requests.exceptions.Timeout:
+
+        assistant_reply = (
+            "Server is waking up. Please try again in 30 seconds."
+        )
+
+    except Exception as e:
+
+        assistant_reply = f"Error: {str(e)}"
+
+    # -----------------------------
+    # SAVE ASSISTANT MESSAGE
+    # -----------------------------
 
     st.session_state.messages.append({
         "role": "assistant",
-        "content": assistant_reply,
-        "recommendations": recommendations
+        "content": assistant_reply
     })
+
+    # -----------------------------
+    # DISPLAY ASSISTANT MESSAGE
+    # -----------------------------
+
+    with st.chat_message("assistant"):
+        st.markdown(assistant_reply)

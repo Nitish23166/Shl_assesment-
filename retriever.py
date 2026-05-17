@@ -1,16 +1,9 @@
 import json
 
-# -----------------------------
-# Load Metadata
-# -----------------------------
-
+# Load metadata
 with open("metadata.json", "r", encoding="utf-8") as f:
     metadata = json.load(f)
 
-
-# -----------------------------
-# Simple Keyword Retrieval
-# -----------------------------
 
 def retrieve_assessments(query, k=5):
 
@@ -36,10 +29,8 @@ def retrieve_assessments(query, k=5):
 
         scored_results.append((score, item))
 
-    # Sort by score descending
     scored_results.sort(reverse=True, key=lambda x: x[0])
 
-    # Top results
     top_results = [item for score, item in scored_results[:k]]
 
     results = []

@@ -1,10 +1,6 @@
 fastapi
 uvicorn
-sentence-transformers
-faiss-cpu
-numpy
 pydantic
 streamlit
 requests
-torch
-scipy
+numpy

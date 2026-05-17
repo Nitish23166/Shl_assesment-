@@ -1,85 +1,50 @@
 import json
-import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
 
 # -----------------------------
-# Global Variables
+# Load Metadata
 # -----------------------------
 
-model = None
-index = None
-metadata = None
+with open("metadata.json", "r", encoding="utf-8") as f:
+    metadata = json.load(f)
 
 
 # -----------------------------
-# Lazy Load Model
+# Simple Keyword Retrieval
 # -----------------------------
 
-def get_model():
+def retrieve_assessments(query, k=5):
 
-    global model
+    query = query.lower()
 
-    if model is None:
-        model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
+    scored_results = []
 
-    return model
+    for item in metadata:
 
+        combined_text = (
+            item["name"] + " " +
+            item["description"] + " " +
+            " ".join(item["keys"]) + " " +
+            " ".join(item["job_levels"])
+        ).lower()
 
-# -----------------------------
-# Lazy Load FAISS Index
-# -----------------------------
+        score = 0
 
-def get_index():
+        for word in query.split():
 
-    global index
+            if word in combined_text:
+                score += 1
 
-    if index is None:
-        index = faiss.read_index("shl_index.faiss")
+        scored_results.append((score, item))
 
-    return index
+    # Sort by score descending
+    scored_results.sort(reverse=True, key=lambda x: x[0])
 
-
-# -----------------------------
-# Lazy Load Metadata
-# -----------------------------
-
-def get_metadata():
-
-    global metadata
-
-    if metadata is None:
-        with open("metadata.json", "r", encoding="utf-8") as f:
-            metadata = json.load(f)
-
-    return metadata
-
-
-# -----------------------------
-# Retrieval Function
-# -----------------------------
-
-def retrieve_assessments(query, k=10):
-
-    model = get_model()
-
-    index = get_index()
-
-    metadata = get_metadata()
-
-    # Create embedding
-    query_vector = model.encode([query])
-
-    query_vector = np.array(query_vector).astype("float32")
-
-    # Search FAISS
-    distances, indices = index.search(query_vector, k)
+    # Top results
+    top_results = [item for score, item in scored_results[:k]]
 
     results = []
 
-    for i in indices[0]:
-
-        item = metadata[i]
+    for item in top_results:
 
         results.append({
             "name": item["name"],
